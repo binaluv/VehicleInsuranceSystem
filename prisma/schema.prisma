@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+  CUSTOMER
+}
+
+model User {
+  id                         String    @id
+  email                      String    @unique
+  password                   String
+  firstName                  String
+  lastName                   String
+  isVerified                 Boolean   @default(false)
+  resetPasswordToken         String?
+  resetPasswordExpiredAt     DateTime?
+  verificationToken          String?
+  verificationTokenExpiredAt DateTime?
+  role                       Role      @default(CUSTOMER)
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  lastLogin                  DateTime?
+
+  profile          Profile?
+  vehicles         Vehicle[]
+  policies         Policy[]
+  payments         Payment[]
+  claimsAsCustomer Claim[]        @relation("CustomerClaims")
+  claimsAsAdmin    Claim[]        @relation("AdminClaims")
+  notifications    Notification[]
+  reports          Report[]
+  quotes           Quote[]
+}
+
+model Profile {
+  id            String    @id
+  userId        String    @unique
+  phone         String?
+  address       String?
+  dateOfBirth   DateTime?
+  avator        String?
+  bio           String?
+  age           Int?
+  phone2        String?
+  country       String?   @default("Ethiopia")
+  city          String?
+  subCity       String?
+  gender        String?
+  occupation    String?
+  status        String?
+  salary        Float?
+  position      String?
+  qualification String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profile")
+}
+
+model Vehicle {
+  id              String   @id
+  name            String
+  model           String
+  status          String
+  brand           String
+  vin             String   @unique
+  year            Int
+  fuelType        String
+  vehicleType     String
+  marketValue     Float
+  odometerReading Float
+  color           String
+  purchaseDate    DateTime
+  isCommercial    Boolean
+  customerId      String
+
+  customer User @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  policies Policy[]
+  claims   Claim[]
+  quotes   Quote[]
+}
+
+model Payment {
+  payNo       String   @id
+  name        String
+  date        DateTime
+  status      String
+  receipt     String?
+  method      String
+  type        String
+  amount      Float
+  reason      String
+  description String
+  referenceNo String
+  customerId  String
+  policyId    String
+
+  customer User   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  policy   Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+}
+
+model Claim {
+  id                 String   @id
+  type               String
+  status             String   @default("pending")
+  supportingDocument String?
+  date               DateTime
+  reason             String
+  amount             Float    @default(0)
+  customerId         String
+  adminId            String?
+  vehicleId          String
+  policyId           String
+  details            Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  customer User    @relation("CustomerClaims", fields: [customerId], references: [id], onDelete: Cascade)
+  admin    User?   @relation("AdminClaims", fields: [adminId], references: [id], onDelete: SetNull)
+  vehicle  Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  policy   Policy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id         String   @id
+  title      String
+  message    String
+  type       String
+  status     String
+  sentDate   DateTime
+  customerId String
+
+  customer User @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id            String   @id
+  type          String
+  generatedDate DateTime
+  content       String
+  format        String
+  remarks       String?
+  adminId       String?
+
+  admin User? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+}
+
+model Quote {
+  id                     String   @id
+  userId                 String?
+  vehicleId              String?
+  fullName               String
+  age                    Int
+  email                  String
+  phone                  String
+  address                String
+  driversLicenseNumber   String?
+  vehicleType            String
+  vehicleMake            String
+  vehicleModel           String
+  vehicleYear            Int
+  vehicleVin             String?
+  ownershipType          String?
+  vehicleUsage           String
+  primaryParkingLocation String?
+  annualMileage          Int?
+  odometerReading        Float?
+  estimatedValue         Float?
+  hasAntiTheftDevices    Boolean?
+  collisionCoverage      Boolean?
+  comprehensiveCoverage  Boolean?
+  liabilityCoverage      Boolean?
+  roadsideAssistance     Boolean?
+  rentalReimbursement    Boolean?
+  deductibleAmount       Int
+  coverageDuration       Int
+  startDate              DateTime
+  monthlyPremium         Float
+  estimatedSavings       Float
+  discounts              Json
+  coverageLevel          String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  vehicle           Vehicle?           @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  additionalDrivers AdditionalDriver[]
+  policies          Policy[]
+}
+
+model AdditionalDriver {
+  id             String @id
+  quoteId        String
+  name           String
+  age            Int
+  drivingHistory String
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+model Policy {
+  id                 String   @id @default(uuid())
+  name               String
+  type               String
+  basePrice          Float?
+  description        String?
+  longDescription    String?
+  premiumBreakdown   Json?
+  premiumAmount      Float
+  startDate          DateTime
+  endDate            DateTime
+  coverageDetails    String
+  status             String
+  coverageAmount     Float
+  gracePeriod        Int
+  termsAndConditions String
+  vehicleType        String?
+  features           Json
+  customerId         String?
+  vehicleId          String?
+  quoteId            String?
+  documentUrl        String?
+
+  customer User?     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payments Payment[]
+  claims   Claim[]
+  vehicle  Vehicle?  @relation(fields: [vehicleId], references: [id])
+  quote    Quote?    @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+}
+
+model TemporaryQuote {
+  id        Int      @id @default(autoincrement())
+  quoteId   String   @unique
+  quoteData Json
+  createdAt DateTime @default(now())
+  expiresAt DateTime @default(dbgenerated("CURRENT_TIMESTAMP + INTERVAL '30 days'"))
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
