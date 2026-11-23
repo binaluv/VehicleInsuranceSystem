@@ -59,3 +59,15 @@ public/tailwind.css
 *.sqlite
 *.sqlite3
 
+
+# Scratch and temporary scripts
+*.mjs
+inspect_data.js
+dir
+my.doc
+/config
+/controllers
+/midleware
+/routes
+/service
+/utils
